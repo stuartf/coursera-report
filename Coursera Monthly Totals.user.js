@@ -1,18 +1,24 @@
 // ==UserScript==
 // @name         Coursera Monthly Totals
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Summarize some monthly totals on the coursera dashboard
 // @author       D. Stuart Freeman
 // @match        https://www.coursera.org/teach-partner/*/monitor
 // @require      http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js
 // @require      http://underscorejs.org/underscore-min.js
 // @require      https://gist.github.com/raw/2625891/waitForKeyElements.js
-// @grant        none
+// @require      https://cdn.datatables.net/1.10.12/js/jquery.dataTables.min.js
+// @resource dtcss https://cdn.datatables.net/1.10.12/css/jquery.dataTables.min.css
+// @grant        GM_addStyle
+// @grant        GM_getResourceText
 // ==/UserScript==
 
 (function() {
     'use strict';
+
+    // add the datatables css to the page
+    GM_addStyle(GM_getResourceText('dtcss'));
 
     // gets the body of the Object with the matching name from the coursera batch request result
     var unpack = function(data, name) {
@@ -75,25 +81,15 @@
                     var target = 'div.navigation-body > div';
 
                     var render = function() {
-                        var template = _.template('<div class="horizontal-box" style="padding-top: 1em;"><table>\
-                                <tr><th></th><th style="padding: 0 1em 0 1em;">Prev Month</th><th>This Month</th></tr>\
-                                <tr><td>Enrollments</td><td align="right" style="padding: 0 1em 0 1em;"><%=lastMo.en%></td><td align="right"><%=thisMo.en%></td></tr>\
-                                <tr><td>Active Enrollments</td><td align="right" style="padding: 0 1em 0 1em;"><%=lastMo.ac%></td><td align="right"><%=thisMo.ac%></td></tr>\
-                                <tr><td>Financial Aid</td><td align="right" style="padding: 0 1em 0 1em;"><%=lastMo.fa%></td><td align="right"><%=thisMo.fa%></td></tr>\
-                            </table></div>'
-                                                 );
-                        $(target).append(template({
-                            'lastMo':{
-                                'en': lastMonthEnrollments,
-                                'ac': lastMonthActive,
-                                'fa': lastMonthFinaid
-                            },
-                            'thisMo':{
-                                'en': thisMonthEnrollments,
-                                'ac': thisMonthActive,
-                                'fa': thisMonthFinaid
-                            }
-                        }));
+                        var table ='<div class="horizontal-box" style="padding-top: 1em;"><table id="tmMonthlyTotals"><thead><tr><th></th><th>Prev Month</th><th>This Month</th></tr></thead><tbody></tbody></table></div>';
+
+                        $(target).append(table);
+
+                        $('#tmMonthlyTotals').DataTable({'paging': false, 'searching': false, 'info': false, 'columnDefs': [{'className': 'dt-right', 'targets': [1, 2]}], 'data': [
+                            ['Enrollments', lastMonthEnrollments, thisMonthEnrollments],
+                            ['Active Enrollments', lastMonthActive, thisMonthActive],
+                            ['Financial Aid', lastMonthFinaid, thisMonthFinaid]
+                        ]});
                     };
                     waitForKeyElements(target, render);
                 }
