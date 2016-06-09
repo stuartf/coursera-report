@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Coursera Monthly Totals
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Summarize some monthly totals on the coursera dashboard
 // @author       D. Stuart Freeman
 // @match        https://www.coursera.org/teach-partner/*/monitor
@@ -62,21 +62,24 @@
                     var active = unpack(data, 'partner_dashboard_active_enrollments');
                     var finaid = unpack(data, 'partner_dashboard_finaid_enrollments');
 
-                    // We need to know the month and year for the previous 2 months
+                    // gets the enrollments, active enrollments, and finaid for a given month
+                    var getMonth = function(date) {
+                        var prevdate = new Date(date);
+                        prevdate.setMonth(date.getMonth() - 1);
+                        return {
+                            'enrollments': getLast(enrollments, date).running_enrollments - getLast(enrollments, prevdate).running_enrollments,
+                            'active': getLast(active, date).running_active_enrollments - getLast(active, prevdate).running_active_enrollments,
+                            'finaid': getLast(finaid, date).running_finaid_enrollments - getLast(finaid, prevdate).running_finaid_enrollments
+                        };
+                    };
+
+                    // We need to know the month and year for the previous month
                     var now = new Date();
                     var lastMonth = new Date();
                     lastMonth.setMonth(lastMonth.getMonth() - 1);
-                    var twoMonthsAgo = new Date();
-                    twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
 
-                    var thisMonthEnrollments = getLast(enrollments, now).running_enrollments - getLast(enrollments, lastMonth).running_enrollments;
-                    var lastMonthEnrollments = getLast(enrollments, lastMonth).running_enrollments - getLast(enrollments, twoMonthsAgo).running_enrollments;
-
-                    var thisMonthActive = getLast(active, now).running_active_enrollments - getLast(active, lastMonth).running_active_enrollments;
-                    var lastMonthActive = getLast(active, lastMonth).running_active_enrollments - getLast(active, twoMonthsAgo).running_active_enrollments;
-
-                    var thisMonthFinaid = getLast(finaid, now).running_finaid_enrollments - getLast(finaid, lastMonth).running_finaid_enrollments;
-                    var lastMonthFinaid = getLast(finaid, lastMonth).running_finaid_enrollments - getLast(finaid, twoMonthsAgo).running_finaid_enrollments;
+                    var thisMonthData = getMonth(now);
+                    var lastMonthData = getMonth(lastMonth);
 
                     var target = 'div.navigation-body > div';
 
@@ -85,10 +88,10 @@
 
                         $(target).append(table);
 
-                        $('#tmMonthlyTotals').DataTable({'paging': false, 'searching': false, 'info': false, 'columnDefs': [{'className': 'dt-right', 'targets': [1, 2]}], 'data': [
-                            ['Enrollments', lastMonthEnrollments, thisMonthEnrollments],
-                            ['Active Enrollments', lastMonthActive, thisMonthActive],
-                            ['Financial Aid', lastMonthFinaid, thisMonthFinaid]
+                        $('#tmMonthlyTotals').DataTable({'paging': false, 'searching': false, 'info': false, 'order': [1, 'desc'], 'columnDefs': [{'className': 'dt-right', 'targets': [1, 2]}], 'data': [
+                            ['Enrollments', lastMonthData.enrollments, thisMonthData.enrollments],
+                            ['Active Enrollments', lastMonthData.active, thisMonthData.active],
+                            ['Financial Aid', lastMonthData.finaid, thisMonthData.finaid]
                         ]});
                     };
                     waitForKeyElements(target, render);
